@@ -71059,6 +71059,14 @@ var CacheFormat;
     CacheFormat["SquashFS"] = "squashfs";
     CacheFormat["EROFS"] = "erofs";
 })(CacheFormat || (CacheFormat = {}));
+function toCacheFormat(value) {
+    if (Object.values(CacheFormat).includes(value !== null && value !== void 0 ? value : '')) {
+        return value;
+    }
+    else {
+        return CacheFormat.Default;
+    }
+}
 var CacheFilename;
 (function (CacheFilename) {
     CacheFilename["Gzip"] = "cache.tgz";
@@ -112561,7 +112569,7 @@ function restoreCache(paths_1, primaryKey_1, restoreKeys_1, options_1) {
         checkPaths(paths);
         switch (cacheServiceVersion) {
             case 'v2':
-                return yield restoreCacheV2(paths, primaryKey, restoreKeys, options, enableCrossOsArchive, CacheFormat[format || String(CacheFormat.Default)]);
+                return yield restoreCacheV2(paths, primaryKey, restoreKeys, options, enableCrossOsArchive, toCacheFormat(format));
             case 'v1':
             default:
                 return yield restoreCacheV1(paths, primaryKey, restoreKeys, options, enableCrossOsArchive);
@@ -112774,7 +112782,7 @@ function cache_saveCache(paths_1, key_1, options_1) {
         switch (cacheServiceVersion) {
             case 'v2':
                 info(`2Saving cache into ${format}`);
-                const cacheFormat = CacheFormat[format || String(CacheFormat.Default)];
+                const cacheFormat = toCacheFormat(format);
                 info(`3Saving cache into ${cacheFormat}`);
                 return yield saveCacheV2(paths, key, options, enableCrossOsArchive, cacheFormat);
             case 'v1':
