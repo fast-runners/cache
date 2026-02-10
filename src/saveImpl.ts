@@ -62,14 +62,14 @@ export async function saveImpl(
             Inputs.EnableCrossOsArchive
         );
 
-        const cacheFormat = core.getInput(Inputs.CacheFormat);
+        const format = core.getInput(Inputs.CacheFormat);
 
         cacheId = await cache.saveCache(
             cachePaths,
             primaryKey,
             { uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize) },
             enableCrossOsArchive,
-            cacheFormat || cache.CacheFormat.Tar
+            format
         );
 
         if (cacheId != -1) {

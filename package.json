@@ -23,10 +23,10 @@
   "author": "GitHub",
   "license": "MIT",
   "dependencies": {
-    "@actions/cache": "github:fast-runners/toolkit#mountable-cache",
-    "@actions/core": "github:fast-runners/toolkit#mountable-cache",
-    "@actions/exec": "github:fast-runners/toolkit#mountable-cache",
-    "@actions/io": "github:fast-runners/toolkit#mountable-cache"
+    "@actions/core": "file:../toolkit/packages/core",
+    "@actions/cache": "file:../toolkit/packages/cache",
+    "@actions/exec": "file:./toolkit/packages/exec",
+    "@actions/io": "file:../toolkit/packages/io"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

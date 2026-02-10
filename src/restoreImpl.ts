@@ -49,7 +49,7 @@ export async function restoreImpl(
             restoreKeys,
             { lookupOnly: lookupOnly },
             enableCrossOsArchive,
-            format || cache.CacheFormat.Tar
+            format
         );
 
         if (!cacheKey) {
