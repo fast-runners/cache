@@ -112960,6 +112960,7 @@ function saveCacheV2(paths_1, key_1, options_1) {
                 }
                 throw new Error(`Unable to finalize cache with key ${key}, another job may be finalizing this cache.`);
             }
+            core_debug(`Cache saved with version ${version} for key ${key}`);
             cacheId = parseInt(finalizeResponse.entryId);
         }
         catch (error) {
