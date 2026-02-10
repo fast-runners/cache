@@ -112687,7 +112687,7 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
         let archivePath = '';
         try {
             const twirpClient = internalCacheTwirpClient();
-            const compressionMethod = yield getCompressionMethod();
+            const compressionMethod = yield getCompressionMethod(format);
             const request = {
                 key: primaryKey,
                 restoreKeys,
