@@ -24,9 +24,9 @@
   "license": "MIT",
   "dependencies": {
     "@actions/cache": "github:fast-runners/toolkit#mountable-cache",
-    "@actions/core": "^2.0.3",
-    "@actions/exec": "^2.0.0",
-    "@actions/io": "^2.0.0"
+    "@actions/core": "github:fast-runners/toolkit#mountable-cache",
+    "@actions/exec": "github:fast-runners/toolkit#mountable-cache",
+    "@actions/io": "github:fast-runners/toolkit#mountable-cache"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
