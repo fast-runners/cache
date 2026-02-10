@@ -66326,7 +66326,7 @@ function saveImpl(stateProvider) {
             });
             const enableCrossOsArchive = utils.getInputAsBool(constants_1.Inputs.EnableCrossOsArchive);
             const format = core.getInput(constants_1.Inputs.CacheFormat);
-            core.debug(`Saving cache into ${format}`);
+            core.info(`Saving cache into ${format}`);
             cacheId = yield cache.saveCache(cachePaths, primaryKey, { uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize) }, enableCrossOsArchive, format);
             if (cacheId != -1) {
                 core.info(`Cache saved with key: ${primaryKey}`);

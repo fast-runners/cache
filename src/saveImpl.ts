@@ -64,7 +64,7 @@ export async function saveImpl(
 
         const format = core.getInput(Inputs.CacheFormat);
 
-        core.debug(`Saving cache into ${format}`);
+        core.info(`Saving cache into ${format}`);
 
         cacheId = await cache.saveCache(
             cachePaths,
