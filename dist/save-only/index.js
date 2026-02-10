@@ -66914,6 +66914,7 @@ exports.w = {
 
 module.exports = __nccwpck_require__(959);
 
+
 /***/ }),
 
 /***/ 9772:
@@ -66934,6 +66935,7 @@ module.exports = { version: packageJson.version }
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = __nccwpck_require__(346);
+
 
 /***/ }),
 
@@ -112781,10 +112783,7 @@ function cache_saveCache(paths_1, key_1, options_1) {
         checkKey(key);
         switch (cacheServiceVersion) {
             case 'v2':
-                info(`2Saving cache into ${format}`);
-                const cacheFormat = toCacheFormat(format);
-                info(`3Saving cache into ${cacheFormat}`);
-                return yield saveCacheV2(paths, key, options, enableCrossOsArchive, cacheFormat);
+                return yield saveCacheV2(paths, key, options, enableCrossOsArchive, toCacheFormat(format));
             case 'v1':
             default:
                 return yield saveCacheV1(paths, key, options, enableCrossOsArchive);
