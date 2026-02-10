@@ -112759,7 +112759,10 @@ function cache_saveCache(paths_1, key_1, options_1) {
         checkKey(key);
         switch (cacheServiceVersion) {
             case 'v2':
-                return yield saveCacheV2(paths, key, options, enableCrossOsArchive, CacheFormat[format || String(CacheFormat.Default)]);
+                info(`2Saving cache into ${format}`);
+                const cacheFormat = CacheFormat[format || String(CacheFormat.Default)];
+                info(`3Saving cache into ${cacheFormat}`);
+                return yield saveCacheV2(paths, key, options, enableCrossOsArchive, cacheFormat);
             case 'v1':
             default:
                 return yield saveCacheV1(paths, key, options, enableCrossOsArchive);
