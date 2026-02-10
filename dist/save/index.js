@@ -71317,7 +71317,7 @@ function tar2EROFS(archivePath) {
 }
 function mountImage(archivePath, format) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
-        const parentDir = yield createTempDirectory();
+        const parentDir = external_path_.dirname(archivePath);
         // Workspace dir is bind mounted here
         const localDir = external_path_.join(parentDir, "local");
         // Cache is mounted here
