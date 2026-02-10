@@ -41,13 +41,15 @@ export async function restoreImpl(
         );
         const failOnCacheMiss = utils.getInputAsBool(Inputs.FailOnCacheMiss);
         const lookupOnly = utils.getInputAsBool(Inputs.LookupOnly);
+        const format = core.getInput(Inputs.CacheFormat);
 
         const cacheKey = await cache.restoreCache(
             cachePaths,
             primaryKey,
             restoreKeys,
             { lookupOnly: lookupOnly },
-            enableCrossOsArchive
+            enableCrossOsArchive,
+            format || cache.CacheFormat.Tar
         );
 
         if (!cacheKey) {
