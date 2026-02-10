@@ -71301,7 +71301,7 @@ function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, CacheFormat.SquashFS);
         // We might consider using lz4 for the parity with EROFS
-        yield exec_exec(`zcat ${archivePath} | sqfstar -comp zstd -b 1M ${imagePath}`);
+        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b 1M ${imagePath}"`);
         return imagePath;
     });
 }
