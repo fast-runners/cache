@@ -148174,7 +148174,7 @@ function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, stora
         var _a, _b;
         const clientId = (_a = process.env.SPN_CLIENT_ID) !== null && _a !== void 0 ? _a : '';
         const tenantId = (_b = process.env.SPN_TENANT_ID) !== null && _b !== void 0 ? _b : '';
-        const credential = new clientAssertionCredential_ClientAssertionCredential(tenantId, clientId, () => cache_awaiter(this, void 0, void 0, function* () { return yield getIDToken(); }));
+        const credential = new clientAssertionCredential_ClientAssertionCredential(tenantId, clientId, () => cache_awaiter(this, void 0, void 0, function* () { return yield getIDToken('api://AzureADTokenExchange'); }));
         const uploadPromises = storageAccounts.map((storageAccount) => cache_awaiter(this, void 0, void 0, function* () {
             try {
                 debug(`Generating SAS URL for storage account: ${storageAccount}`);
