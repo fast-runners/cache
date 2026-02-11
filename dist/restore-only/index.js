@@ -148157,14 +148157,10 @@ class FinalizeCacheError extends Error {
 }
 function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, storageAccounts, options) {
     return cache_awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
-        const clientId = (_a = process.env.SPN_CLIENT_ID) !== null && _a !== void 0 ? _a : '';
-        const tenantId = (_b = process.env.SPN_TENANT_ID) !== null && _b !== void 0 ? _b : '';
-        const credential = new clientAssertionCredential_ClientAssertionCredential(tenantId, clientId, () => cache_awaiter(this, void 0, void 0, function* () { return yield getIDToken('api://AzureADTokenExchange'); }));
         const uploadPromises = storageAccounts.map((storageAccount) => cache_awaiter(this, void 0, void 0, function* () {
             try {
                 debug(`Generating SAS URL for storage account: ${storageAccount}`);
-                const sasUrl = yield generateSasUrl(storageAccount, 'actions-cache', `${fileName}/${fileName}`, credential);
+                const sasUrl = yield generateSasUrl(storageAccount, 'actions-cache', `${fileName}/${fileName}`);
                 debug(`Uploading to additional storage account: ${storageAccount}`);
                 yield saveCache(cacheId, archivePath, sasUrl, options);
                 info(`Successfully uploaded cache to storage account: ${storageAccount}`);
@@ -148176,18 +148172,21 @@ function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, stora
         yield Promise.allSettled(uploadPromises);
     });
 }
-function generateSasUrl(accountName, containerName, blobName, credential) {
+function generateSasUrl(accountName, containerName, blobName) {
     return cache_awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        const clientId = (_a = process.env.SPN_CLIENT_ID) !== null && _a !== void 0 ? _a : '';
+        const tenantId = (_b = process.env.SPN_TENANT_ID) !== null && _b !== void 0 ? _b : '';
+        const credential = new clientAssertionCredential_ClientAssertionCredential(tenantId, clientId, () => cache_awaiter(this, void 0, void 0, function* () { return yield getIDToken('api://AzureADTokenExchange'); }));
         const blobServiceClient = new BlobServiceClient(`https://${accountName}.blob.core.windows.net`, credential);
         // Get user delegation key
         const startsOn = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago to account for clock skew
         const expiresOn = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
         const userDelegationKey = yield blobServiceClient.getUserDelegationKey(startsOn, expiresOn);
-        // Generate SAS query parameters
         const sasQueryParameters = generateBlobSASQueryParameters({
             containerName,
             blobName,
-            permissions: BlobSASPermissions.parse('w'), // write permissions
+            permissions: BlobSASPermissions.parse('rw'),
             startsOn,
             expiresOn,
             protocol: SASProtocol.Https
@@ -148195,6 +148194,62 @@ function generateSasUrl(accountName, containerName, blobName, credential) {
         // Construct the full URL with SAS parameters
         const sasUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}?${sasQueryParameters.toString()}`;
         return sasUrl;
+    });
+}
+function getAzureVmLocation() {
+    return cache_awaiter(this, void 0, void 0, function* () {
+        try {
+            // Query Azure Instance Metadata Service (IMDS) to get VM compute metadata
+            const response = yield fetch('http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01', {
+                headers: {
+                    'Metadata': 'true'
+                },
+            });
+            if (response.ok) {
+                const computeData = yield response.json();
+                const location = computeData.location;
+                debug(`Azure VM location detected: ${location}`);
+                return location.toLowerCase();
+            }
+        }
+        catch (error) {
+            debug(`Failed to query Azure IMDS: ${error}`);
+        }
+        return undefined;
+    });
+}
+function getAdditionalDownloadUrl(originalUrl) {
+    return cache_awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        const vmLocation = yield getAzureVmLocation();
+        if (!vmLocation) {
+            debug('VM location not detected');
+            return undefined;
+        }
+        // Find storage account that ends with VM location (pick shortest prefix after stripping location suffix)
+        // This is to handle cases where we have foocentralus, foonorthcentralus and foosouthcentralus
+        const additionalStorageAccounts = (_a = process.env.ADDITIONAL_STORAGE_ACCOUNTS) !== null && _a !== void 0 ? _a : '';
+        let selectedStorageAccount;
+        let shortestPrefixLength = Infinity;
+        const storageAccountNames = additionalStorageAccounts.split(',');
+        for (const storageAccount of storageAccountNames) {
+            if (storageAccount.endsWith(vmLocation)) {
+                const prefix = storageAccount.slice(0, -vmLocation.length);
+                if (prefix.length < shortestPrefixLength) {
+                    shortestPrefixLength = prefix.length;
+                    selectedStorageAccount = storageAccount;
+                }
+            }
+        }
+        if (!selectedStorageAccount) {
+            debug(`No storage account found in ${vmLocation}`);
+            return undefined;
+        }
+        debug(`Using storage account: ${selectedStorageAccount}`);
+        // Extract blob name from original URL
+        const urlPath = new URL(originalUrl).pathname;
+        const fileName = (_b = urlPath.split('/').pop()) !== null && _b !== void 0 ? _b : '';
+        return yield generateSasUrl(selectedStorageAccount, 'actions-cache', `${fileName}/${fileName}`);
     });
 }
 function checkPaths(paths) {
@@ -148388,7 +148443,17 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
             archivePath = external_path_.join(yield createTempDirectory(), getCacheFileName(compressionMethod));
             debug(`Archive path: ${archivePath}`);
             debug(`Starting download of archive to: ${archivePath}`);
-            yield downloadCache(response.signedDownloadUrl, archivePath, options);
+            let downloadUrl;
+            switch (format) {
+                case CacheFormat.SquashFS:
+                case CacheFormat.EROFS:
+                    downloadUrl = yield getAdditionalDownloadUrl(response.signedDownloadUrl);
+                    break;
+                default:
+                    downloadUrl = response.signedDownloadUrl;
+            }
+            debug(`Downloading from ${downloadUrl}`);
+            yield downloadCache(downloadUrl !== null && downloadUrl !== void 0 ? downloadUrl : '', archivePath, options);
             const archiveFileSize = getArchiveFileSizeInBytes(archivePath);
             info(`Cache Size: ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B)`);
             switch (format) {
