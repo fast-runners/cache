@@ -154883,9 +154883,9 @@ function getAdditionalDownloadUrl(originalUrl) {
         // Extract blob name from original URL
         const urlPath = new URL(originalUrl).pathname;
         const fileName = (_b = urlPath.split('/').pop()) !== null && _b !== void 0 ? _b : '';
-        // To keep things simple we generate SAS at the directory level
-        // This is to streamline the blobfuse code that takes download Url as input
-        const sas = yield generateSas(selectedStorageAccount, 'actions-cache', `${fileName}`);
+        // To keep things simple we generate container level SAS for the download Url (which we use in blobfuse)
+        // TODO: use '@azure/storage-file-datalake' to generate directory-scoped SAS
+        const sas = yield generateSas(selectedStorageAccount, 'actions-cache');
         return `https://${selectedStorageAccount}.blob.core.windows.net/actions-cache/${fileName}/${fileName}?${sas}`;
     });
 }
