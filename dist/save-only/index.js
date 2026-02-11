@@ -86398,6 +86398,8 @@ const TarFilename = 'cache.tar';
 const ManifestFilename = 'manifest.txt';
 const CacheFileSizeLimit = 10 * Math.pow(1024, 3); // 10GiB per repository
 //# sourceMappingURL=constants.js.map
+// EXTERNAL MODULE: ../toolkit/node_modules/yaml/index.js
+var yaml = __nccwpck_require__(2495);
 ;// CONCATENATED MODULE: ../toolkit/packages/cache/lib/internal/cacheUtils.js
 var cacheUtils_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -86415,6 +86417,7 @@ var cacheUtils_asyncValues = (undefined && undefined.__asyncValues) || function 
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
+
 
 
 
@@ -86613,9 +86616,10 @@ function tar2EROFS(archivePath) {
 function mountImage(archivePath, format, blobfuseConfig) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const parentDir = external_path_.dirname(archivePath);
-        external_fs_.writeFileSync(external_path_.join(parentDir, 'config.yml'), blobfuseConfig);
         // Workspace dir is bind mounted here
         const localDir = external_path_.join(parentDir, "local");
+        // Blobfuse2 block cache
+        const blockDir = external_path_.join(parentDir, "block_cache");
         // Cache is mounted here
         const cacheDir = external_path_.join(parentDir, "cache");
         // Writable dir for the overlay upper layer
@@ -86630,6 +86634,9 @@ function mountImage(archivePath, format, blobfuseConfig) {
         yield mkdirP(workDir);
         yield mkdirP(mergeDir);
         const workspaceDir = getWorkingDirectory();
+        const configFile = external_path_.join(parentDir, 'config.yml');
+        external_fs_.writeFileSync(configFile, blobfuseConfig);
+        external_fs_.writeFileSync(external_path_.join(parentDir, 'mount.sh'), `blobfuse2 mount ${cacheDir} --read-only --block-cache --block-cache-path ${blockDir} --config-file ${configFile}`);
         debug(`Mounting workspace to ${localDir}`);
         yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
         yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
@@ -86655,6 +86662,38 @@ function listImage(archivePath, format) {
                 throw Error(`Unexpected format ${format}`);
         }
     });
+}
+function parseBlobUrlWithSas(url) {
+    const urlObj = new URL(url);
+    const accountName = urlObj.hostname.split('.')[0];
+    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+    const containerName = pathParts[0] || '';
+    const blobDir = pathParts.slice(1, -1).join('/');
+    const sasToken = urlObj.search;
+    return {
+        accountName,
+        containerName,
+        blobDir,
+        sasToken
+    };
+}
+function generateBlobfuse2Config(blobUrl) {
+    const { accountName, containerName, blobDir, sasToken } = parseBlobUrlWithSas(blobUrl);
+    const config = {
+        block_cache: {
+            'prefetch-on-open': true,
+            'disk-timeout-sec': 21600
+        },
+        azstorage: {
+            'type': 'adls',
+            'account-name': accountName,
+            'container': containerName,
+            'mode': 'sas',
+            'subdirectory': blobDir,
+            'sas': sasToken
+        }
+    };
+    return yaml.stringify(config);
 }
 //# sourceMappingURL=cacheUtils.js.map
 // EXTERNAL MODULE: external "url"
@@ -154759,8 +154798,6 @@ function getDefaultAzureCredential() {
 }
 
 //# sourceMappingURL=index.js.map
-// EXTERNAL MODULE: ../toolkit/node_modules/yaml/index.js
-var yaml = __nccwpck_require__(2495);
 ;// CONCATENATED MODULE: ../toolkit/packages/cache/lib/cache.js
 var cache_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -154771,7 +154808,6 @@ var cache_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _ar
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-
 
 
 
@@ -154836,7 +154872,7 @@ function generateSas(accountName, containerName, blobName) {
         const sasQueryParameters = generateBlobSASQueryParameters({
             containerName,
             blobName,
-            permissions: BlobSASPermissions.parse('rw'),
+            permissions: BlobSASPermissions.parse('rwl'),
             startsOn,
             expiresOn,
             protocol: SASProtocol.Https
@@ -154902,34 +154938,6 @@ function getAdditionalDownloadUrl(originalUrl) {
         const sas = yield generateSas(selectedStorageAccount, 'actions-cache');
         return `https://${selectedStorageAccount}.blob.core.windows.net/actions-cache/${fileName}/${fileName}?${sas}`;
     });
-}
-function parseBlobUrlWithSas(url) {
-    const urlObj = new URL(url);
-    const accountName = urlObj.hostname.split('.')[0];
-    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
-    const containerName = pathParts[0] || '';
-    const blobDir = pathParts.slice(1, -1).join('/');
-    const sasToken = urlObj.search;
-    return {
-        accountName,
-        containerName,
-        blobDir,
-        sasToken
-    };
-}
-function generateBlobfuse2Config(blobUrl) {
-    const { accountName, containerName, blobDir, sasToken } = parseBlobUrlWithSas(blobUrl);
-    const config = {
-        azstorage: {
-            'type': 'adls',
-            'account-name': accountName,
-            'container': containerName,
-            'mode': 'sas',
-            'subdirectory': blobDir,
-            'sas': sasToken
-        }
-    };
-    return yaml.stringify(config);
 }
 function checkPaths(paths) {
     if (!paths || paths.length === 0) {
