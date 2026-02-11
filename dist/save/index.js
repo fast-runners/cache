@@ -156169,7 +156169,7 @@ function generateDataLakeSas(accountName, containerName, directoryPath) {
             fileSystemName: containerName,
             pathName: directoryPath,
             isDirectory: true,
-            permissions: DataLakeSASPermissions.parse("rl"),
+            permissions: DataLakeSASPermissions.parse("rx"),
             startsOn,
             expiresOn,
             protocol: SASQueryParameters_SASProtocol.Https
