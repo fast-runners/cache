@@ -154795,7 +154795,8 @@ function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, stora
         const uploadPromises = storageAccounts.map((storageAccount) => cache_awaiter(this, void 0, void 0, function* () {
             try {
                 debug(`Generating SAS URL for storage account: ${storageAccount}`);
-                const sasUrl = yield generateSasUrl(storageAccount, 'actions-cache', `${fileName}/${fileName}`);
+                const sas = yield generateSas(storageAccount, 'actions-cache', `${fileName}/${fileName}`);
+                const sasUrl = `https://${storageAccount}.blob.core.windows.net/actions-cache/${fileName}/${fileName}?${sas}`;
                 debug(`Uploading to additional storage account: ${storageAccount}`);
                 yield saveCache(cacheId, archivePath, sasUrl, options);
                 info(`Successfully uploaded cache to storage account: ${storageAccount}`);
@@ -154807,7 +154808,7 @@ function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, stora
         yield Promise.allSettled(uploadPromises);
     });
 }
-function generateSasUrl(accountName, containerName, blobName) {
+function generateSas(accountName, containerName, blobName) {
     return cache_awaiter(this, void 0, void 0, function* () {
         var _a, _b;
         const clientId = (_a = process.env.SPN_CLIENT_ID) !== null && _a !== void 0 ? _a : '';
@@ -154826,9 +154827,7 @@ function generateSasUrl(accountName, containerName, blobName) {
             expiresOn,
             protocol: SASProtocol.Https
         }, userDelegationKey, accountName);
-        // Construct the full URL with SAS parameters
-        const sasUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}?${sasQueryParameters.toString()}`;
-        return sasUrl;
+        return sasQueryParameters.toString();
     });
 }
 function getAzureVmLocation() {
@@ -154884,7 +154883,10 @@ function getAdditionalDownloadUrl(originalUrl) {
         // Extract blob name from original URL
         const urlPath = new URL(originalUrl).pathname;
         const fileName = (_b = urlPath.split('/').pop()) !== null && _b !== void 0 ? _b : '';
-        return yield generateSasUrl(selectedStorageAccount, 'actions-cache', `${fileName}/${fileName}`);
+        // To keep things simple we generate SAS at the directory level
+        // This is to streamline the blobfuse code that takes download Url as input
+        const sas = yield generateSas(selectedStorageAccount, 'actions-cache', `${fileName}`);
+        return `https://${selectedStorageAccount}.blob.core.windows.net/actions-cache/${fileName}/${fileName}?${sas}`;
     });
 }
 function parseBlobUrlWithSas(url) {
