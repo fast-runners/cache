@@ -148176,11 +148176,16 @@ function uploadToAdditionalStorageAccounts(cacheId, archivePath, fileName, stora
         const tenantId = (_b = process.env.SPN_TENANT_ID) !== null && _b !== void 0 ? _b : '';
         const credential = new clientAssertionCredential_ClientAssertionCredential(tenantId, clientId, () => cache_awaiter(this, void 0, void 0, function* () { return yield getIDToken(); }));
         const uploadPromises = storageAccounts.map((storageAccount) => cache_awaiter(this, void 0, void 0, function* () {
-            debug(`Generating SAS URL for storage account: ${storageAccount}`);
-            const sasUrl = yield generateSasUrl(storageAccount, 'actions-cache', `${fileName}/${fileName}`, credential);
-            debug(`Uploading to additional storage account: ${storageAccount}`);
-            yield saveCache(cacheId, archivePath, sasUrl, options);
-            info(`Successfully uploaded cache to storage account: ${storageAccount}`);
+            try {
+                debug(`Generating SAS URL for storage account: ${storageAccount}`);
+                const sasUrl = yield generateSasUrl(storageAccount, 'actions-cache', `${fileName}/${fileName}`, credential);
+                debug(`Uploading to additional storage account: ${storageAccount}`);
+                yield saveCache(cacheId, archivePath, sasUrl, options);
+                info(`Successfully uploaded cache to storage account: ${storageAccount}`);
+            }
+            catch (error) {
+                info(`Upload failed: ${error}`);
+            }
         }));
         yield Promise.allSettled(uploadPromises);
     });
