@@ -197609,7 +197609,7 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
                     const blobfuseConfig = yield generateBlobfuse2Config(response.signedDownloadUrl);
                     const cacheDir = yield mountImage(fileName, format, blobfuseConfig);
                     if (isDebug()) {
-                        yield (0,external_child_process_.exec)(`find ${cacheDir}`);
+                        yield exec_exec(`find ${cacheDir}`);
                     }
                     break;
                 default:
