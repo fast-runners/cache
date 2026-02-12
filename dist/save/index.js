@@ -86591,19 +86591,19 @@ function glob_hashFiles(patterns_1) {
 // EXTERNAL MODULE: ../toolkit/packages/cache/node_modules/semver/index.js
 var semver = __nccwpck_require__(2052);
 ;// CONCATENATED MODULE: ../toolkit/packages/cache/lib/internal/constants.js
-var CacheFormat;
+var constants_CacheFormat;
 (function (CacheFormat) {
     CacheFormat["Default"] = "tar";
     CacheFormat["Tar"] = "tar";
     CacheFormat["SquashFS"] = "squashfs";
     CacheFormat["EROFS"] = "erofs";
-})(CacheFormat || (CacheFormat = {}));
+})(constants_CacheFormat || (constants_CacheFormat = {}));
 function toCacheFormat(value) {
-    if (Object.values(CacheFormat).includes(value !== null && value !== void 0 ? value : '')) {
+    if (Object.values(constants_CacheFormat).includes(value !== null && value !== void 0 ? value : '')) {
         return value;
     }
     else {
-        return CacheFormat.Default;
+        return constants_CacheFormat.Default;
     }
 }
 var CacheFilename;
@@ -155987,8 +155987,8 @@ function getVersion(app_1) {
 function getCompressionMethod(format) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         switch (format) {
-            case CacheFormat.SquashFS:
-            case CacheFormat.EROFS:
+            case constants_CacheFormat.SquashFS:
+            case constants_CacheFormat.EROFS:
                 return CompressionMethod.Gzip;
             default:
                 const versionOutput = yield getVersion('zstd', ['--quiet']);
@@ -156026,7 +156026,7 @@ function assertDefined(name, value) {
 function getCacheVersion(paths, format, compressionMethod, enableCrossOsArchive = false) {
     // don't pass changes upstream
     const components = paths.slice();
-    if (format != CacheFormat.Default) {
+    if (format != constants_CacheFormat.Default) {
         components.push(format);
     }
     // Add compression method to cache version to restore
@@ -156056,7 +156056,7 @@ function changeExtension(filePath, newExt) {
 }
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
-        const imagePath = changeExtension(archivePath, CacheFormat.SquashFS);
+        const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
         // We might consider using lz4 for the parity with EROFS
         yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b 1M ${imagePath}"`);
         return imagePath;
@@ -156064,7 +156064,7 @@ function tar2SquashFS(archivePath) {
 }
 function tar2EROFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
-        const imagePath = changeExtension(archivePath, CacheFormat.EROFS);
+        const imagePath = changeExtension(archivePath, constants_CacheFormat.EROFS);
         // Ubuntu24 images have mkfs.erofs compiled without zstd support hence lz4 
         yield exec_exec(`mkfs.erofs -z lz4 --tar=f --gzip ${imagePath} ${archivePath}`);
         return imagePath;
@@ -156075,8 +156075,8 @@ function mountImage(archivePath, format, blobfuseConfig) {
         const parentDir = external_path_.dirname(archivePath);
         // Workspace dir is bind mounted here
         const localDir = external_path_.join(parentDir, "local");
-        // Blobfuse2 block cache
-        const blockDir = external_path_.join(parentDir, "block_cache");
+        // Blobfuse2 file cache
+        const tmpDir = external_path_.join(parentDir, "fuse_cache");
         // Cache is mounted here
         const cacheDir = external_path_.join(parentDir, "cache");
         // Writable dir for the overlay upper layer
@@ -156090,10 +156090,12 @@ function mountImage(archivePath, format, blobfuseConfig) {
         yield mkdirP(writeDir);
         yield mkdirP(workDir);
         yield mkdirP(mergeDir);
+        yield mkdirP(tmpDir);
         const workspaceDir = getWorkingDirectory();
+        debug(`Mounting blobfuse to ${cacheDir}`);
         const configFile = external_path_.join(parentDir, 'config.yml');
         external_fs_.writeFileSync(configFile, blobfuseConfig);
-        external_fs_.writeFileSync(external_path_.join(parentDir, 'mount.sh'), `blobfuse2 mount ${cacheDir} --read-only --block-cache --block-cache-path ${blockDir} --config-file ${configFile}`);
+        yield exec_exec(`blobfuse2 mount ${cacheDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile}`);
         debug(`Mounting workspace to ${localDir}`);
         yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
         yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
@@ -156103,17 +156105,18 @@ function mountImage(archivePath, format, blobfuseConfig) {
         yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir} ${mergeDir}`);
         debug(`Mounting ${mergeDir} on top of workspace`);
         yield exec_exec(`sudo mount --bind ${mergeDir} "${workspaceDir}`);
+        return cacheDir;
     });
 }
 function listImage(archivePath, format) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         switch (format) {
             case CacheFormat.SquashFS:
-                yield exec_exec(`unsquashfs -l ${archivePath}`);
+                yield exec.exec(`unsquashfs -l ${archivePath}`);
                 break;
             case CacheFormat.EROFS:
                 // This is not a recursive print
-                yield exec_exec(`dump.erofs --ls --path=/ ${archivePath}`);
+                yield exec.exec(`dump.erofs --ls --path=/ ${archivePath}`);
                 break;
             default:
                 throw Error(`Unexpected format ${format}`);
@@ -196082,7 +196085,7 @@ function createHttpClient() {
 function getCacheEntry(keys, paths, options) {
     return cacheHttpClient_awaiter(this, void 0, void 0, function* () {
         const httpClient = createHttpClient();
-        const version = getCacheVersion(paths, CacheFormat.Default, options === null || options === void 0 ? void 0 : options.compressionMethod, options === null || options === void 0 ? void 0 : options.enableCrossOsArchive);
+        const version = getCacheVersion(paths, constants_CacheFormat.Default, options === null || options === void 0 ? void 0 : options.compressionMethod, options === null || options === void 0 ? void 0 : options.enableCrossOsArchive);
         const resource = `cache?keys=${encodeURIComponent(keys.join(','))}&version=${version}`;
         const response = yield retryTypedResponse('getCacheEntry', () => cacheHttpClient_awaiter(this, void 0, void 0, function* () { return httpClient.getJson(getCacheApiUrl(resource)); }));
         // Cache not found
@@ -196151,7 +196154,7 @@ function downloadCache(archiveLocation, archivePath, options) {
 function reserveCache(key, paths, options) {
     return cacheHttpClient_awaiter(this, void 0, void 0, function* () {
         const httpClient = createHttpClient();
-        const version = getCacheVersion(paths, CacheFormat.Default, options === null || options === void 0 ? void 0 : options.compressionMethod, options === null || options === void 0 ? void 0 : options.enableCrossOsArchive);
+        const version = getCacheVersion(paths, constants_CacheFormat.Default, options === null || options === void 0 ? void 0 : options.compressionMethod, options === null || options === void 0 ? void 0 : options.enableCrossOsArchive);
         const reserveCacheRequest = {
             key,
             version,
@@ -197357,6 +197360,7 @@ var cache_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _ar
 
 
 
+
 class ValidationError extends Error {
     constructor(message) {
         super(message);
@@ -197568,7 +197572,7 @@ function restoreCacheV1(paths_1, primaryKey_1, restoreKeys_1, options_1) {
  * @returns string returns the key for the cache hit, otherwise returns undefined
  */
 function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
-    return cache_awaiter(this, arguments, void 0, function* (paths, primaryKey, restoreKeys, options, enableCrossOsArchive = false, format = CacheFormat.Default) {
+    return cache_awaiter(this, arguments, void 0, function* (paths, primaryKey, restoreKeys, options, enableCrossOsArchive = false, format = constants_CacheFormat.Default) {
         // Override UploadOptions to force the use of Azure
         options = Object.assign(Object.assign({}, options), { useAzureSdk: true });
         restoreKeys = restoreKeys || [];
@@ -197606,24 +197610,22 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
                 info('Lookup only - skipping download');
                 return response.matchedKey;
             }
-            archivePath = external_path_.join(yield createTempDirectory(), getCacheFileName(compressionMethod));
-            debug(`Archive path: ${archivePath}`);
-            debug(`Starting download of archive to: ${archivePath}`);
-            yield downloadCache(response.signedDownloadUrl, archivePath, options);
-            const archiveFileSize = getArchiveFileSizeInBytes(archivePath);
-            info(`Cache Size: ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B)`);
             switch (format) {
-                case CacheFormat.SquashFS:
-                case CacheFormat.EROFS:
-                    if (isDebug()) {
-                        yield listImage(archivePath, format);
-                    }
+                case constants_CacheFormat.SquashFS:
+                case constants_CacheFormat.EROFS:
                     const blobfuseConfig = yield generateBlobfuse2Config(response.signedDownloadUrl);
-                    yield mountImage(archivePath, format, blobfuseConfig);
-                    // This prevents archive from being deleted
-                    archivePath = '';
+                    const cacheDir = yield mountImage(archivePath, format, blobfuseConfig);
+                    if (isDebug()) {
+                        yield (0,external_child_process_.exec)(`find ${cacheDir}`);
+                    }
                     break;
                 default:
+                    archivePath = external_path_.join(yield createTempDirectory(), getCacheFileName(compressionMethod));
+                    debug(`Archive path: ${archivePath}`);
+                    debug(`Starting download of archive to: ${archivePath}`);
+                    yield downloadCache(response.signedDownloadUrl, archivePath, options);
+                    const archiveFileSize = getArchiveFileSizeInBytes(archivePath);
+                    info(`Cache Size: ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B)`);
                     if (isDebug()) {
                         yield listTar(archivePath, compressionMethod);
                     }
@@ -197784,7 +197786,7 @@ function saveCacheV1(paths_1, key_1, options_1) {
  * @returns
  */
 function saveCacheV2(paths_1, key_1, options_1) {
-    return cache_awaiter(this, arguments, void 0, function* (paths, key, options, enableCrossOsArchive = false, format = CacheFormat.Default) {
+    return cache_awaiter(this, arguments, void 0, function* (paths, key, options, enableCrossOsArchive = false, format = constants_CacheFormat.Default) {
         var _a;
         // Override UploadOptions to force the use of Azure
         // ...options goes first because we want to override the default values
@@ -197808,7 +197810,7 @@ function saveCacheV2(paths_1, key_1, options_1) {
                 yield listTar(archivePath, compressionMethod);
             }
             switch (format) {
-                case CacheFormat.SquashFS:
+                case constants_CacheFormat.SquashFS:
                     debug(`Building SquashFS image from ${archivePath}`);
                     {
                         let imagePath = yield tar2SquashFS(archivePath);
@@ -197819,7 +197821,7 @@ function saveCacheV2(paths_1, key_1, options_1) {
                         archivePath = imagePath;
                     }
                     break;
-                case CacheFormat.EROFS:
+                case constants_CacheFormat.EROFS:
                     debug(`Building EROFS image from ${archivePath}`);
                     {
                         let imagePath = yield tar2EROFS(archivePath);
