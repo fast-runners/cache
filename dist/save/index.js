@@ -156070,13 +156070,15 @@ function tar2EROFS(archivePath) {
         return imagePath;
     });
 }
-function mountImage(archivePath, format, blobfuseConfig) {
+function mountImage(archiveName, format, blobfuseConfig) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
-        const parentDir = external_path_.dirname(archivePath);
+        const parentDir = yield createTempDirectory();
         // Workspace dir is bind mounted here
         const localDir = external_path_.join(parentDir, "local");
+        // Blobfuse2 mount point
+        const fuseDir = external_path_.join(parentDir, "blobfuse");
         // Blobfuse2 file cache
-        const tmpDir = external_path_.join(parentDir, "fuse_cache");
+        const tmpDir = external_path_.join(parentDir, "blobcache");
         // Cache is mounted here
         const cacheDir = external_path_.join(parentDir, "cache");
         // Writable dir for the overlay upper layer
@@ -156086,20 +156088,22 @@ function mountImage(archivePath, format, blobfuseConfig) {
         // Merged OverlayFS directory
         const mergeDir = external_path_.join(parentDir, "merge");
         yield mkdirP(localDir);
+        yield mkdirP(fuseDir);
+        yield mkdirP(tmpDir);
         yield mkdirP(cacheDir);
         yield mkdirP(writeDir);
         yield mkdirP(workDir);
         yield mkdirP(mergeDir);
-        yield mkdirP(tmpDir);
         const workspaceDir = getWorkingDirectory();
-        debug(`Mounting blobfuse to ${cacheDir}`);
+        debug(`Mounting blobfuse to ${fuseDir}`);
         const configFile = external_path_.join(parentDir, 'config.yml');
         external_fs_.writeFileSync(configFile, blobfuseConfig);
-        yield exec_exec(`blobfuse2 mount ${cacheDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile}`);
+        yield exec_exec(`blobfuse2 mount ${fuseDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile}`);
         debug(`Mounting workspace to ${localDir}`);
         yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
         yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
         debug(`Mounting cache to ${cacheDir}`);
+        const archivePath = external_path_.join(fuseDir, archiveName);
         yield exec_exec(`sudo mount -t ${format} -o loop,ro ${archivePath} ${cacheDir}`);
         debug(`Mounting OverlayFS to ${mergeDir}`);
         yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir} ${mergeDir}`);
@@ -197573,6 +197577,7 @@ function restoreCacheV1(paths_1, primaryKey_1, restoreKeys_1, options_1) {
  */
 function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
     return cache_awaiter(this, arguments, void 0, function* (paths, primaryKey, restoreKeys, options, enableCrossOsArchive = false, format = constants_CacheFormat.Default) {
+        var _a;
         // Override UploadOptions to force the use of Azure
         options = Object.assign(Object.assign({}, options), { useAzureSdk: true });
         restoreKeys = restoreKeys || [];
@@ -197613,8 +197618,10 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
             switch (format) {
                 case constants_CacheFormat.SquashFS:
                 case constants_CacheFormat.EROFS:
+                    const urlPath = new URL(response.signedDownloadUrl).pathname;
+                    const fileName = (_a = urlPath.split('/').pop()) !== null && _a !== void 0 ? _a : '';
                     const blobfuseConfig = yield generateBlobfuse2Config(response.signedDownloadUrl);
-                    const cacheDir = yield mountImage(archivePath, format, blobfuseConfig);
+                    const cacheDir = yield mountImage(fileName, format, blobfuseConfig);
                     if (isDebug()) {
                         yield (0,external_child_process_.exec)(`find ${cacheDir}`);
                     }
