@@ -156076,9 +156076,9 @@ function mountImage(archiveName, format, blobfuseConfig) {
         // Workspace dir is bind mounted here
         const localDir = external_path_.join(parentDir, "local");
         // Blobfuse2 mount point
-        const fuseDir = external_path_.join(parentDir, "blobfuse");
+        const fuseDir = external_path_.join(parentDir, "fuse");
         // Blobfuse2 file cache
-        const tmpDir = external_path_.join(parentDir, "blobcache");
+        const tmpDir = external_path_.join(parentDir, "block");
         // Cache is mounted here
         const cacheDir = external_path_.join(parentDir, "cache");
         // Writable dir for the overlay upper layer
@@ -156098,7 +156098,7 @@ function mountImage(archiveName, format, blobfuseConfig) {
         debug(`Mounting blobfuse to ${fuseDir}`);
         const configFile = external_path_.join(parentDir, 'config.yml');
         external_fs_.writeFileSync(configFile, blobfuseConfig);
-        yield exec_exec(`blobfuse2 mount ${fuseDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile}`);
+        yield exec_exec(`sudo blobfuse2 mount ${fuseDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile} --streaming`);
         debug(`Mounting workspace to ${localDir}`);
         yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
         yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
