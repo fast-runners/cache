@@ -156047,6 +156047,13 @@ function getBlockSize() {
     }
     return value;
 }
+function getFuseBlockSize() {
+    const value = process.env['FUSE_BLOCK_SIZE'];
+    if (!value) {
+        return '16'; // 16Mb
+    }
+    return value;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
@@ -156138,8 +156145,10 @@ function parseBlobUrlWithSas(url) {
 function generateBlobfuse2Config(blobUrl) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const { accountName, containerName, blobDir, sasToken } = yield getBlobMountParts(blobUrl);
+        const block_size = getFuseBlockSize();
         const config = {
             block_cache: {
+                'block-size-mb': block_size,
                 'prefetch-on-open': true,
                 'disk-timeout-sec': 21600
             },
