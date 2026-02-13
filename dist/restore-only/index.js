@@ -156040,18 +156040,27 @@ function changeExtension(filePath, newExt) {
     const { dir, name } = external_path_.parse(filePath);
     return external_path_.join(dir, `${name}${ext}`);
 }
+function getBlockSize() {
+    const value = process.env['CACHE_BLOCK_SIZE'];
+    if (!value) {
+        return '131072'; // 128Kb
+    }
+    return value;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
-        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b 128K ${imagePath}"`);
+        const blockSize = getBlockSize();
+        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b ${blockSize} ${imagePath}"`);
         return imagePath;
     });
 }
 function tar2EROFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.EROFS);
+        const blockSize = getBlockSize();
         // Ubuntu24 images have mkfs.erofs compiled without zstd support hence lzma
-        yield exec_exec(`mkfs.erofs -z lzma,109 -C 1048576 --tar=f --gzip ${imagePath} ${archivePath}`);
+        yield exec_exec(`mkfs.erofs -z lz4hc -C ${blockSize} --tar=f --gzip ${imagePath} ${archivePath}`);
         return imagePath;
     });
 }
