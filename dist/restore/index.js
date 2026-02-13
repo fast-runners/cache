@@ -156151,13 +156151,25 @@ function parseBlobUrlWithSas(url) {
         sasToken
     };
 }
+function cacheUtils_getLogLevel() {
+    const value = process.env['FUSE_LOG_LEVEL'];
+    if (!value) {
+        return 'log_info';
+    }
+    return value;
+}
 function generateBlobfuse2Config(blobUrl) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const { accountName, containerName, blobDir, sasToken } = yield getBlobMountParts(blobUrl);
-        const block_size = getFuseBlockSize();
+        const blockSize = getFuseBlockSize();
+        const logLevel = cacheUtils_getLogLevel();
         const config = {
+            logging: {
+                'type': 'base',
+                'level': `${logLevel}`
+            },
             block_cache: {
-                'block-size-mb': block_size,
+                'block-size-mb': blockSize,
                 'prefetch-on-open': true,
                 'disk-timeout-sec': 21600
             },
