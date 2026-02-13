@@ -156068,11 +156068,19 @@ function getFuseBlockSize() {
     }
     return value;
 }
+function getCompression() {
+    const value = process.env['SQUASHFS_COMP'];
+    if (!value) {
+        return 'zstd';
+    }
+    return value;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
         const blockSize = getBlockSize();
-        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b ${blockSize} ${imagePath}"`);
+        const comp = getCompression();
+        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp ${comp} -b ${blockSize} ${imagePath}"`);
         return imagePath;
     });
 }
