@@ -156057,7 +156057,7 @@ function changeExtension(filePath, newExt) {
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
-        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b 1M ${imagePath}"`);
+        yield exec_exec(`sh -c "zcat ${archivePath} | sqfstar -comp zstd -b 128K ${imagePath}"`);
         return imagePath;
     });
 }
