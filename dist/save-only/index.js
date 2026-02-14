@@ -156141,7 +156141,7 @@ function mountImage(archiveName, format, blobfuseConfig) {
         // threads=multu is a SquashFS option
         yield exec_exec(`sudo mount -t ${format} -o loop,ro,threads=multi ${archivePath} ${cacheDir}`);
         debug(`Mounting OverlayFS to ${mergeDir}`);
-        yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir} ${mergeDir}`);
+        yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir},volatile ${mergeDir}`);
         debug(`Mounting ${mergeDir} on top of workspace`);
         yield exec_exec(`sudo mount --bind ${mergeDir} "${workspaceDir}`);
         return cacheDir;
