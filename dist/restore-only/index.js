@@ -156184,6 +156184,9 @@ function generateBlobfuse2Config(blobUrl) {
                 'prefetch-on-open': true,
                 'disk-timeout-sec': 21600
             },
+            attr_cache: {
+                'timeout-sec': 21600
+            },
             azstorage: {
                 'type': 'adls',
                 'account-name': accountName,
