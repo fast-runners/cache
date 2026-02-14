@@ -156061,6 +156061,13 @@ function getCompression() {
     }
     return value;
 }
+function getDisableFileCache() {
+    const value = process.env['FUSE_NO_FILE_CACHE'];
+    if (value) {
+        return true;
+    }
+    return false;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
@@ -156107,7 +156114,11 @@ function mountImage(archiveName, format, blobfuseConfig) {
         debug(`Mounting blobfuse to ${fuseDir}`);
         const configFile = external_path_.join(parentDir, 'config.yml');
         external_fs_.writeFileSync(configFile, blobfuseConfig);
-        yield exec_exec(`sudo blobfuse2 mount ${fuseDir} --read-only --block-cache --block-cache-path ${tmpDir} --config-file ${configFile} --streaming`);
+        let fileCache = `--block-cache-path ${tmpDir}`;
+        if (getDisableFileCache()) {
+            fileCache = '';
+        }
+        yield exec_exec(`sudo blobfuse2 mount ${fuseDir} --read-only --block-cache ${fileCache} --config-file ${configFile} --streaming`);
         debug(`Mounting workspace to ${localDir}`);
         yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
         yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
