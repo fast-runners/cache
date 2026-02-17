@@ -156068,6 +156068,13 @@ function getDisableFileCache() {
     }
     return false;
 }
+function useDeviceMapper() {
+    const value = process.env['USE_DEVICE_MAPPER'];
+    if (value) {
+        return true;
+    }
+    return false;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
@@ -156126,10 +156133,23 @@ function mountImage(archiveName, format, blobfuseConfig) {
         const archivePath = external_path_.join(fuseDir, archiveName);
         // threads=multu is a SquashFS option
         yield exec_exec(`sudo mount -t ${format} -o loop,ro,threads=multi ${archivePath} ${cacheDir}`);
-        debug(`Mounting OverlayFS to ${mergeDir}`);
-        yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir},metacopy=on,volatile ${mergeDir}`);
-        debug(`Mounting ${mergeDir} on top of workspace`);
-        yield exec_exec(`sudo mount --bind ${mergeDir} "${workspaceDir}`);
+        if (useDeviceMapper()) {
+            debug(`Creating DM snapshot`);
+            const cowFile = external_path_.join(parentDir, "cow.img");
+            yield exec_exec(`sudo truncate -s 10G ${cowFile}`);
+            //sudo truncate -s 10G ${cowFile}}
+            //sudo losetup -f ${cowFile}
+            //LOOPCOW="$(losetup -j ${cowFile} | awk -F: '{print $1}')"
+            //SECTORS="$(blockdev --getsz ${blobLoopDevice})"
+            // CHUNK=8
+            // dmsetup create snap0 --table "0 $SECTORS snapshot $ORIGIN $LOOPCOW N 8"
+        }
+        else {
+            debug(`Mounting OverlayFS to ${mergeDir}`);
+            yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir},metacopy=on,volatile ${mergeDir}`);
+            debug(`Mounting ${mergeDir} on top of workspace`);
+            yield exec_exec(`sudo mount --bind ${mergeDir} "${workspaceDir}`);
+        }
         return cacheDir;
     });
 }
