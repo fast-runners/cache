@@ -156075,6 +156075,13 @@ function useDeviceMapper() {
     }
     return false;
 }
+function localCacheMount() {
+    const value = process.env['USE_LOCAL_MOUNT'];
+    if (value) {
+        return true;
+    }
+    return false;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
@@ -156093,7 +156100,39 @@ function tar2EROFS(archivePath) {
         return imagePath;
     });
 }
-function mountImage(archiveName, format, blobfuseConfig) {
+function localMountImage(archivePath, format) {
+    return cacheUtils_awaiter(this, void 0, void 0, function* () {
+        const parentDir = yield createTempDirectory();
+        // Workspace dir is bind mounted here
+        const localDir = external_path_.join(parentDir, "local");
+        // Cache is mounted here
+        const cacheDir = external_path_.join(parentDir, "cache");
+        // Writable dir for the overlay upper layer
+        const writeDir = external_path_.join(parentDir, "write");
+        // Work directory for the OverlayFS
+        const workDir = external_path_.join(parentDir, "work");
+        // Merged OverlayFS directory
+        const mergeDir = external_path_.join(parentDir, "merge");
+        yield mkdirP(localDir);
+        yield mkdirP(cacheDir);
+        yield mkdirP(writeDir);
+        yield mkdirP(workDir);
+        yield mkdirP(mergeDir);
+        const workspaceDir = getWorkingDirectory();
+        debug(`Mounting workspace to ${localDir}`);
+        yield exec_exec(`sudo mount --bind ${workspaceDir} ${localDir}`);
+        yield exec_exec(`sudo mount -o remount,bind,ro ${localDir}`);
+        debug(`Mounting cache to ${cacheDir}`);
+        // threads=multu is a SquashFS option
+        yield exec_exec(`sudo mount -t ${format} -o loop,ro,threads=multi ${archivePath} ${cacheDir}`);
+        debug(`Mounting OverlayFS to ${mergeDir}`);
+        yield exec_exec(`sudo mount -t overlay overlay -o lowerdir="${cacheDir}:${localDir}",upperdir=${writeDir},workdir=${workDir},metacopy=on,volatile ${mergeDir}`);
+        debug(`Mounting ${mergeDir} on top of workspace`);
+        yield exec_exec(`sudo mount --bind ${mergeDir} "${workspaceDir}`);
+        return cacheDir;
+    });
+}
+function remoteMountImage(archiveName, format, blobfuseConfig) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const parentDir = yield createTempDirectory();
         // Workspace dir is bind mounted here
@@ -156138,7 +156177,8 @@ function mountImage(archiveName, format, blobfuseConfig) {
             const cowFile = external_path_.join(parentDir, "cow.img");
             yield exec_exec(`sudo truncate -s 10G ${cowFile}`);
             //sudo truncate -s 10G ${cowFile}}
-            //sudo losetup -f ${cowFile}
+            //sudo losetup --show --find ${cowFile}
+            // sudo losetup --show -r -f /home/runner/work/_temp/012aa448-6ef8-4f61-986d-ebe5ebc3e25d/fuse/5c8-2855351290
             //LOOPCOW="$(losetup -j ${cowFile} | awk -F: '{print $1}')"
             //SECTORS="$(blockdev --getsz ${blobLoopDevice})"
             // CHUNK=8
@@ -197676,10 +197716,20 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
             switch (format) {
                 case constants_CacheFormat.SquashFS:
                 case constants_CacheFormat.EROFS:
-                    const urlPath = new URL(response.signedDownloadUrl).pathname;
-                    const fileName = (_a = urlPath.split('/').pop()) !== null && _a !== void 0 ? _a : '';
-                    const blobfuseConfig = yield generateBlobfuse2Config(response.signedDownloadUrl);
-                    const cacheDir = yield mountImage(fileName, format, blobfuseConfig);
+                    let cacheDir;
+                    if (localCacheMount()) {
+                        archivePath = external_path_.join(yield createTempDirectory(), getCacheFileName(compressionMethod));
+                        debug(`Archive path: ${archivePath}`);
+                        debug(`Starting download of archive to: ${archivePath}`);
+                        yield downloadCache(response.signedDownloadUrl, archivePath, options);
+                        cacheDir = yield localMountImage(archivePath, format);
+                    }
+                    else {
+                        const urlPath = new URL(response.signedDownloadUrl).pathname;
+                        const fileName = (_a = urlPath.split('/').pop()) !== null && _a !== void 0 ? _a : '';
+                        const blobfuseConfig = yield generateBlobfuse2Config(response.signedDownloadUrl);
+                        cacheDir = yield remoteMountImage(fileName, format, blobfuseConfig);
+                    }
                     if (isDebug()) {
                         yield exec_exec(`find ${cacheDir}`);
                     }
