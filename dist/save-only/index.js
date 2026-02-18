@@ -156096,6 +156096,13 @@ function localCacheMount() {
     }
     return false;
 }
+function localCacheDownload() {
+    const value = process.env['USE_LOCAL_DOWNLOAD'];
+    if (value) {
+        return true;
+    }
+    return false;
+}
 function tar2SquashFS(archivePath) {
     return cacheUtils_awaiter(this, void 0, void 0, function* () {
         const imagePath = changeExtension(archivePath, constants_CacheFormat.SquashFS);
@@ -197735,7 +197742,13 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
                         archivePath = external_path_.join(yield createTempDirectory(), getCacheFileName(compressionMethod));
                         debug(`Archive path: ${archivePath}`);
                         debug(`Starting download of archive to: ${archivePath}`);
-                        yield downloadCache(response.signedDownloadUrl, archivePath, options);
+                        let signedDownloadUrl = response.signedDownloadUrl;
+                        if (localCacheDownload()) {
+                            const parts = yield getBlobMountParts(response.signedDownloadUrl);
+                            signedDownloadUrl = `https://${parts.accountName}.blob.core.windows.net/${parts.containerName}/${parts.blobDir}/${parts.blobDir}?${parts.sasToken}`;
+                        }
+                        info(`${signedDownloadUrl}`);
+                        yield downloadCache(signedDownloadUrl, archivePath, options);
                         cacheDir = yield localMountImage(archivePath, format);
                     }
                     else {
